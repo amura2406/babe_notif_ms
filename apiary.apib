@@ -15,6 +15,13 @@ This service **SHOULD** limit itself of the number of async task alive concurren
 
 ### Push Notification via GCM [POST]
 
+Add new **push request** through the async task manager. If the nuymber of concurrent async task is available then return HTTP 204 and assign this message to dedicated async thread.
+Otherwise return HTTP 503 and specify `Retry-After` header in seconds.
+
+Recipients will be sent in batches every maximum **1000** items. Every batch will be assigned a dedicated thread.
+
+**NB** content of the message is a string and this service **WILL NOT** parse or process it, it simply being sent to GCM.
+
 + Request (application/json)
     + Attributes
         + appId: 1 (number, required) - App ID of the caller. If not recognized by this service, will be rejected.
@@ -43,7 +50,7 @@ This service **SHOULD** limit itself of the number of async task alive concurren
     
     + Headers
                 
-                Retry-After: 120 (delta seconds)
+                Retry-After: 120
         
 
     + Attributes (DefaultError503)
@@ -54,14 +61,10 @@ This service **SHOULD** limit itself of the number of async task alive concurren
 
 ### Get Async Task Detail [GET]
 
+Return the status of current running async task along with their progress.
+
 + Response 200 (application/json)
-    + Attributes (array)
-        + job: `job-name-1` (string) - Job name
-        + current: 11000 (number) - Current number of recipients already sent
-        + total: 20000 (number) - Total number of recipients
-        + failure: 12 (number) - Total failure number
-        + appId: 1 (number) - App ID of the caller
-        + content: `\{ \"msgtype\":0 etc .......\}` (string) - The content/message to be sent to recipients.
+    + Attributes (array[TaskStatusModel])
 
 + Response 503 (application/json)
     Return when server has internal error and can't continue fulfilling the request
@@ -69,6 +72,14 @@ This service **SHOULD** limit itself of the number of async task alive concurren
     + Attributes (DefaultError503)
 
 # Data Structures
+
+## TaskStatusModel
++ job: `job-name-1` (string) - Job name
++ current: 11000 (number) - Current number of recipients already sent
++ total: 20000 (number) - Total number of recipients
++ failure: 12 (number) - Total failure number
++ appId: 1 (number) - App ID of the caller
++ content: `\{ \"msgtype\":0 etc .......\}` (string) - The content/message to be sent to recipients.
 
 ## Error (object)
 + errCode (number) - Error Code

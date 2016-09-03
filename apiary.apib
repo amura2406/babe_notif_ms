@@ -1,80 +1,95 @@
 FORMAT: 1A
-HOST: http://polls.apiblueprint.org/
+HOST: http://localhost/notif/v1/
 
 # babe-notif-ms
 
-Polls is a simple API allowing consumers to view polls and vote in them.
+The Notification Service objective is to provide single interface to perform push notification both on Android via GCM and also iOS via APNS.
 
-## Questions Collection [/questions]
+It has to manage background processes which send the __push data__ asynchronously.
 
-### List All Questions [GET]
+This service **SHOULD** limit itself of the number of async task alive concurrently to avoid the service to be unresponsive or even worse it stop working.
 
-+ Response 200 (application/json)
+# Group Android Push 
 
-        [
-            {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 2048
-                    }, {
-                        "choice": "Python",
-                        "votes": 1024
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 512
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 256
-                    }
-                ]
-            }
-        ]
+## GCM Based Push [/gcm/broadcast]
 
-### Create a New Question [POST]
-
-You may create your own question using this action. It takes a JSON
-object containing a question and a collection of answers in the
-form of choices.
+### Push Notification via GCM [POST]
 
 + Request (application/json)
+    + Attributes
+        + appId: 1 (number, required) - App ID of the caller. If not recognized by this service, will be rejected.
+        + recipients: `bk3RNwTe3H0:CI2k_HHwgIpoDKCIZvvDMExUdFQ3P1`, `k98RNwTe3H0:CK2k_MNwgIpoDKCIZvvDMExUdFQLG1` (array[string], required) - List of GCM Id to be sent.
+        + content: `\{ \"msgtype\":0 etc .......\}` (string, required) - The content/message to be sent to recipients.
 
-        {
-            "question": "Favourite programming language?",
-            "choices": [
-                "Swift",
-                "Python",
-                "Objective-C",
-                "Ruby"
-            ]
-        }
++ Response 204
 
-+ Response 201 (application/json)
++ Response 400 (application/json)
+    Return when parameters requirement not met correctly
+    
+    + Attributes (DefaultError400)
+        
++ Response 404 (application/json)
+    Return when App ID is not recognized
+    
+    + Attributes (DefaultError404)
+    
++ Response 413 (application/json)
+    Return when request data is too big (limit configurable)
+    
+    + Attributes (DefaultError413)
 
++ Response 503 (application/json)
+    Return when all available async task slot is out.
+    
     + Headers
+                
+                Retry-After: 120 (delta seconds)
+        
 
-            Location: /questions/2
+    + Attributes (DefaultError503)
 
-    + Body
+# Group Admin Control
 
-            {
-                "question": "Favourite programming language?",
-                "published_at": "2015-08-05T08:40:51.620Z",
-                "choices": [
-                    {
-                        "choice": "Swift",
-                        "votes": 0
-                    }, {
-                        "choice": "Python",
-                        "votes": 0
-                    }, {
-                        "choice": "Objective-C",
-                        "votes": 0
-                    }, {
-                        "choice": "Ruby",
-                        "votes": 0
-                    }
-                ]
-            }
+## Status [/task/status]
+
+### Get Async Task Detail [GET]
+
++ Response 200 (application/json)
+    + Attributes (array)
+        + job: `job-name-1` (string) - Job name
+        + current: 11000 (number) - Current number of recipients already sent
+        + total: 20000 (number) - Total number of recipients
+        + failure: 12 (number) - Total failure number
+        + appId: 1 (number) - App ID of the caller
+        + content: `\{ \"msgtype\":0 etc .......\}` (string) - The content/message to be sent to recipients.
+
++ Response 503 (application/json)
+    Return when server has internal error and can't continue fulfilling the request
+            
+    + Attributes (DefaultError503)
+
+# Data Structures
+
+## Error (object)
++ errCode (number) - Error Code
++ errMsg (string) - Error Message
+
+## DefaultError400 (Error)
++ errCode: `-1`
++ errMsg: Invalid Request
+
+## DefaultError401 (Error)
++ errCode: `-2`
++ errMsg: Authorization needed to access resource
+
+## DefaultError404 (Error)
++ errCode: `-5`
++ errMsg: Resource not found
+
+## DefaultError413 (Error)
++ errCode: `-14`
++ errMsg: Request Entity Too Large
+
+## DefaultError503 (Error)
++ errCode: `-10`
++ errMsg: Backend service is down

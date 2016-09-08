@@ -22,6 +22,25 @@ Recipients will be sent in batches every maximum **1000** items. Every batch wil
 
 **NB** content of the message is a string and this service **WILL NOT** parse or process it, it simply being sent to GCM.
 
+To handle `GCM Result` which usually contain **GCM to be updated** and  **GCM to be deleted**, this microservice will then push the event to MQ Queue `gcm_update_q` & `gcm_remove_q` respectively.
+
+#### `GCM to be Updated` message format
+  
+``` json
+    {
+      "gcm_id": "xxx",
+      "new_gcm_id": "yyy"
+    }
+```
+
+#### `GCM to be Deleted` message format
+
+``` json
+    {
+      "gcm_id": "xxx"
+    }
+```
+
 + Request (application/json)
     + Attributes
         + appId: 1 (number, required) - App ID of the caller. If not recognized by this service, will be rejected.
